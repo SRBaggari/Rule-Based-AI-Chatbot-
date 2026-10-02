@@ -14,7 +14,12 @@ BANNER = f"""\
   {BOT_NAME} - Rule-Based AI Chatbot
   DecodeLabs AI Internship | Project 1
 ==================================================
-Type 'help' to see what I can do, or 'bye' to exit.
+Hi! I'm {BOT_NAME}. I reply using predefined rules, not machine learning.
+
+  Try:  'hello'   'how are you?'   'what time is it?'
+        'tell me a joke'   'my name is Alex'
+
+Type 'help' to see everything I understand, or 'bye' to exit.
 """
 
 
@@ -54,4 +59,6 @@ def run(
         if reply.should_exit:
             break
 
-    output_fn(f"\n(Session ended after {bot.session.turns} message(s).)")
+    turns = bot.session.turns
+    noun = "message" if turns == 1 else "messages"
+    output_fn(f"\n(Session ended after {turns} {noun}.)")

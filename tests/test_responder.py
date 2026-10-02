@@ -76,6 +76,14 @@ class PersonalisationTests(unittest.TestCase):
         reply = build_response("joke", name="Alex")
         self.assertIn(reply, possible_replies(INTENTS["joke"]["responses"]))
 
+    def test_avoid_skips_the_previous_reply(self):
+        entry = {"responses": ["one", "two"]}
+        for seed in range(10):
+            self.assertEqual(render(entry, rng=random.Random(seed), avoid="one"), "two")
+
+    def test_avoid_ignored_when_only_one_reply(self):
+        self.assertEqual(render({"responses": ["only"]}, avoid="only"), "only")
+
     def test_render_works_on_any_entry(self):
         self.assertEqual(render({"responses": ["Hi {name}"]}, name="Sam"), "Hi Sam")
 

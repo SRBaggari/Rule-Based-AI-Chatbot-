@@ -3,7 +3,15 @@ import unittest
 from datetime import datetime
 
 from chatbot.chatbot import EMPTY_INTENT, FALLBACK_INTENT, Chatbot
-from chatbot.knowledge_base import EMPTY_INPUT, FALLBACK, INTENTS
+from chatbot.knowledge_base import (
+    EMPTY_INPUT,
+    EXACT_INDEX,
+    FALLBACK,
+    FALLBACK_REPEATED,
+    INTENTS,
+    SYMBOLS_ONLY,
+)
+from chatbot.preprocessor import sanitize
 
 
 def make_bot() -> Chatbot:
@@ -17,12 +25,19 @@ class DecisionBranchTests(unittest.TestCase):
         self.bot = make_bot()
 
     def test_empty_input_branch(self):
-        for text in ("", "   ", "?!"):
+        for text in ("", "   ", "\t"):
             with self.subTest(text=text):
                 reply = self.bot.respond(text)
                 self.assertEqual(reply.intent, EMPTY_INTENT)
                 self.assertIn(reply.text, EMPTY_INPUT["responses"])
                 self.assertFalse(reply.should_exit)
+
+    def test_symbols_only_input_gets_its_own_hint(self):
+        for text in ("?", "?!", "..."):
+            with self.subTest(text=text):
+                reply = self.bot.respond(text)
+                self.assertEqual(reply.intent, EMPTY_INTENT)
+                self.assertIn(reply.text, SYMBOLS_ONLY["responses"])
 
     def test_fallback_branch(self):
         reply = self.bot.respond("purple elephants dance")
@@ -61,8 +76,53 @@ class OnlyFarewellExitsTests(unittest.TestCase):
             if intent == "farewell":
                 continue
             for pattern in entry["patterns"]:
+                if sanitize(pattern) in EXACT_INDEX:
+                    continue  # the bare word is an exit command, e.g. "bye"
                 with self.subTest(pattern=pattern):
                     self.assertFalse(bot.respond(pattern).should_exit)
+
+    def test_exit_word_in_sentence_keeps_chatting(self):
+        reply = make_bot().respond("I will not quit")
+        self.assertEqual(reply.intent, "exit_hint")
+        self.assertFalse(reply.should_exit)
+
+
+class FallbackEscalationTests(unittest.TestCase):
+    def setUp(self):
+        self.bot = make_bot()
+
+    def test_first_miss_gets_short_fallback(self):
+        self.assertIn(self.bot.respond("asdf").text, FALLBACK["responses"])
+
+    def test_repeated_misses_show_examples(self):
+        self.bot.respond("asdf")
+        reply = self.bot.respond("qwerty")
+        self.assertEqual(reply.intent, FALLBACK_INTENT)
+        self.assertIn(reply.text, FALLBACK_REPEATED["responses"])
+
+    def test_a_match_resets_the_miss_counter(self):
+        self.bot.respond("asdf")
+        self.bot.respond("hello")
+        self.assertIn(self.bot.respond("qwerty").text, FALLBACK["responses"])
+
+    def test_empty_input_does_not_count_as_a_miss(self):
+        self.bot.respond("asdf")
+        self.bot.respond("")
+        self.assertEqual(self.bot.session.misses, 1)
+
+
+class NoRepeatTests(unittest.TestCase):
+    def test_same_question_twice_gets_a_different_reply(self):
+        for seed in range(20):
+            bot = Chatbot(rng=random.Random(seed))
+            with self.subTest(seed=seed):
+                first = bot.respond("tell me a joke").text
+                self.assertNotEqual(first, bot.respond("tell me a joke").text)
+
+    def test_single_reply_intents_still_answer(self):
+        bot = make_bot()
+        first = bot.respond("who made you").text
+        self.assertEqual(first, bot.respond("who made you").text)
 
 
 class SessionTests(unittest.TestCase):
@@ -84,6 +144,14 @@ class SessionTests(unittest.TestCase):
     def test_farewell_is_personalised_once_name_known(self):
         self.bot.respond("my name is Alex")
         self.assertIn("Alex", self.bot.respond("bye").text)
+
+    def test_non_names_are_not_stored(self):
+        for text in ("call me later", "my name is 123", "my name is not important"):
+            with self.subTest(text=text):
+                bot = make_bot()
+                reply = bot.respond(text)
+                self.assertIsNone(bot.session.name)
+                self.assertIn(reply.text, INTENTS["name_intro"]["responses"])
 
     def test_name_can_be_changed(self):
         self.bot.respond("my name is Alex")

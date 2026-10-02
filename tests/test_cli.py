@@ -59,7 +59,15 @@ class LoopTests(unittest.TestCase):
 
     def test_session_summary_is_printed(self):
         console, _ = run_script(["hi", "bye"])
-        self.assertIn("Session ended after 2 message(s)", console.output[-1])
+        self.assertIn("Session ended after 2 messages.", console.output[-1])
+
+    def test_session_summary_singular(self):
+        console, _ = run_script(["bye"])
+        self.assertIn("Session ended after 1 message.", console.output[-1])
+
+    def test_welcome_message_explains_help_and_exit(self):
+        self.assertIn("'help'", BANNER)
+        self.assertIn("'bye'", BANNER)
 
 
 class CleanShutdownTests(unittest.TestCase):

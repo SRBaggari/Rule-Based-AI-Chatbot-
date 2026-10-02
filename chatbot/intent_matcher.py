@@ -21,8 +21,13 @@ from chatbot.knowledge_base import (
 )
 from chatbot.preprocessor import ngrams, tokenize
 
-# Words that end a name: "my name is alex and i like python" -> "Alex".
-_NAME_STOP_WORDS = frozenset({"and", "but", "so", "or", "because", "from", "im", "i"})
+# Words that can't be part of a name. They end the name ("my name is alex and
+# i like python" -> "Alex") or reject it entirely ("call me later" -> no name).
+_NOT_NAME_WORDS = frozenset({
+    "and", "but", "so", "or", "because", "from", "im", "i", "please",
+    "a", "an", "the", "not", "later", "back", "maybe", "now", "soon",
+    "tomorrow", "again", "anytime",
+})
 _MAX_NAME_WORDS = 3
 
 
@@ -64,18 +69,23 @@ def match_intent(clean_text: str) -> Match | None:
 def extract_name(clean_text: str, prefix: str) -> str | None:
     """Pull a name out of a message like ``"my name is alex"``.
 
-    Takes up to three words after ``prefix``, stopping at a joining word, and
-    returns them title-cased. Returns ``None`` if no name follows the prefix.
+    Takes up to three words after ``prefix`` and returns them title-cased. It
+    stops at the first word that can't be part of a name (a joining word, a
+    number, ...). Returns ``None`` if no valid name follows the prefix.
 
     >>> extract_name("my name is alex", "my name is")
     'Alex'
     >>> extract_name("call me mary jane and say hi", "call me")
     'Mary Jane'
+    >>> extract_name("call me later", "call me") is None
+    True
     """
     words = tokenize(clean_text)[len(prefix.split()):]
     name_words: list[str] = []
     for word in words:
-        if word in _NAME_STOP_WORDS or len(name_words) == _MAX_NAME_WORDS:
+        if len(name_words) == _MAX_NAME_WORDS:
+            break
+        if word in _NOT_NAME_WORDS or not word.isalpha():
             break
         name_words.append(word)
     return " ".join(name_words).title() if name_words else None

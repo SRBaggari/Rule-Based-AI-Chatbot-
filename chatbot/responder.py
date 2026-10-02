@@ -26,11 +26,13 @@ def render(
     name: str | None = None,
     now: datetime | None = None,
     rng: random.Random | None = None,
+    avoid: str | None = None,
 ) -> str:
     """Pick a template from a knowledge-base entry and fill in its placeholders.
 
     If the user's name is known and the entry has personalised replies, one of
-    those is used instead of the general ones.
+    those is used instead of the general ones. ``avoid`` is the previous reply:
+    when there is another option, the bot won't say the same thing twice in a row.
     """
     rng = rng or random.Random()
     now = now or datetime.now()
@@ -40,14 +42,28 @@ def render(
     else:
         templates = entry["responses"]
 
-    return rng.choice(templates).format(
-        bot=BOT_NAME,
-        name=name or "friend",
-        time=format_time(now),
-        date=format_date(now),
-    )
+    replies = [
+        template.format(
+            bot=BOT_NAME,
+            name=name or "friend",
+            time=format_time(now),
+            date=format_date(now),
+        )
+        for template in templates
+    ]
+    if avoid in replies and len(replies) > 1:
+        replies.remove(avoid)
+    return rng.choice(replies)
 
 
-def build_response(intent: str | None, **options) -> str:
+def build_response(
+    intent: str | None,
+    *,
+    name: str | None = None,
+    now: datetime | None = None,
+    rng: random.Random | None = None,
+    avoid: str | None = None,
+) -> str:
     """Return a reply for ``intent``, or a fallback reply if it is unknown."""
-    return render(INTENTS.get(intent, FALLBACK), **options)
+    entry = INTENTS.get(intent, FALLBACK)
+    return render(entry, name=name, now=now, rng=rng, avoid=avoid)

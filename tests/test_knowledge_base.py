@@ -34,7 +34,9 @@ class KnowledgeBaseStructureTests(unittest.TestCase):
 
     def test_templates_only_use_known_placeholders(self):
         allowed = {"bot": "", "name": "", "time": "", "date": ""}
-        entries = list(kb.INTENTS.values()) + [kb.FALLBACK, kb.EMPTY_INPUT]
+        entries = list(kb.INTENTS.values()) + [
+            kb.FALLBACK, kb.FALLBACK_REPEATED, kb.EMPTY_INPUT, kb.SYMBOLS_ONLY,
+        ]
         for entry in entries:
             for template in entry["responses"] + entry.get("personal_responses", []):
                 with self.subTest(template=template):
@@ -57,7 +59,12 @@ class IndexTests(unittest.TestCase):
     def test_exit_commands_are_exact_matches(self):
         for command in ("bye", "exit", "quit", "goodbye"):
             self.assertEqual(kb.EXACT_INDEX[command], "farewell")
-            self.assertNotIn(command, kb.KEYWORD_INDEX)
+            # Inside a longer sentence the same word only triggers a hint.
+            self.assertEqual(kb.KEYWORD_INDEX[command], "exit_hint")
+
+    def test_bot_name_is_used_in_patterns(self):
+        self.assertEqual(kb.EXACT_INDEX[f"bye {kb.BOT_NAME.lower()}"], "farewell")
+        self.assertEqual(kb.KEYWORD_INDEX[kb.BOT_NAME.lower()], "greeting")
 
     def test_max_word_counts(self):
         self.assertEqual(

@@ -3,11 +3,11 @@
 The knowledge base (a dictionary) decides *what* to say. The short
 if/elif/else chain in :meth:`Chatbot.respond` decides *what to do*:
 
-    empty input  -> ask the user to type something
-    no match     -> fallback reply
-    farewell     -> say goodbye and signal the loop to exit
-    name intro   -> remember the user's name
-    anything else-> look up the reply for the matched intent
+    empty input   -> ask the user to type something
+    no match      -> fallback reply (with examples after repeated misses)
+    farewell      -> say goodbye and signal the loop to exit
+    name intro    -> remember the user's name
+    anything else -> look up the reply for the matched intent
 
 The chain stays the same size however many intents the knowledge base holds.
 """
@@ -17,13 +17,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
-from chatbot.intent_matcher import Match, extract_name, match_intent
-from chatbot.knowledge_base import EMPTY_INPUT
+from chatbot.intent_matcher import extract_name, match_intent
+from chatbot.knowledge_base import EMPTY_INPUT, FALLBACK_REPEATED, SYMBOLS_ONLY
 from chatbot.preprocessor import sanitize
 from chatbot.responder import build_response, render
 
 FALLBACK_INTENT = "fallback"
 EMPTY_INTENT = "empty"
+MISSES_BEFORE_EXAMPLES = 2
 
 
 @dataclass
@@ -31,7 +32,9 @@ class Session:
     """What the bot remembers during one conversation."""
 
     name: str | None = None
-    turns: int = 0
+    turns: int = 0              # messages that contained words
+    misses: int = 0             # unrecognised messages in a row
+    last_reply: str | None = None
 
 
 @dataclass(frozen=True)
@@ -62,43 +65,35 @@ class Chatbot:
         """Return the reply to one message from the user."""
         clean = sanitize(raw_input)
         match = match_intent(clean)
-        if clean:
-            self.session.turns += 1
+        should_exit = False
 
         if not clean:
-            text = render(EMPTY_INPUT, rng=self._rng)
-            return self._reply(EMPTY_INTENT, clean, None, text)
+            # A blank line and a line of only symbols ("?!") get different hints.
+            entry = SYMBOLS_ONLY if raw_input.strip() else EMPTY_INPUT
+            intent, text = EMPTY_INTENT, self._render(entry)
         elif match is None:
-            text = self._say(FALLBACK_INTENT)
-            return self._reply(FALLBACK_INTENT, clean, None, text)
+            self.session.misses += 1
+            if self.session.misses >= MISSES_BEFORE_EXAMPLES:
+                intent, text = FALLBACK_INTENT, self._render(FALLBACK_REPEATED)
+            else:
+                intent, text = FALLBACK_INTENT, self._say(FALLBACK_INTENT)
         elif match.intent == "farewell":
-            text = self._say("farewell", name=self.session.name)
-            return self._reply("farewell", clean, match, text, should_exit=True)
+            intent, text = "farewell", self._say("farewell", self.session.name)
+            should_exit = True
         elif match.intent == "name_intro":
             name = extract_name(clean, match.phrase)
             if name is not None:
                 self.session.name = name
-            text = self._say("name_intro", name=name)
-            return self._reply("name_intro", clean, match, text)
+            intent, text = "name_intro", self._say("name_intro", name)
         else:
-            text = self._say(match.intent, name=self.session.name)
-            return self._reply(match.intent, clean, match, text)
+            intent, text = match.intent, self._say(match.intent, self.session.name)
 
-    def goodbye(self) -> str:
-        """Return a farewell for when the user leaves without typing 'bye'."""
-        return self._say("farewell", name=self.session.name)
+        if clean:
+            self.session.turns += 1
+        if match is not None:
+            self.session.misses = 0
+        self.session.last_reply = text
 
-    def _say(self, intent: str, name: str | None = None) -> str:
-        return build_response(intent, name=name, now=self._clock(), rng=self._rng)
-
-    @staticmethod
-    def _reply(
-        intent: str,
-        clean: str,
-        match: Match | None,
-        text: str,
-        should_exit: bool = False,
-    ) -> Reply:
         return Reply(
             text=text,
             intent=intent,
@@ -107,3 +102,21 @@ class Chatbot:
             rule=match.rule if match else None,
             should_exit=should_exit,
         )
+
+    def goodbye(self) -> str:
+        """Return a farewell for when the user leaves without typing 'bye'."""
+        return self._say("farewell", self.session.name)
+
+    def _say(self, intent: str, name: str | None = None) -> str:
+        """Reply for an intent; unknown intents fall back to a default reply."""
+        return build_response(
+            intent,
+            name=name,
+            now=self._clock(),
+            rng=self._rng,
+            avoid=self.session.last_reply,
+        )
+
+    def _render(self, entry: dict) -> str:
+        """Reply for a special entry that isn't an intent (empty input, etc.)."""
+        return render(entry, rng=self._rng, avoid=self.session.last_reply)

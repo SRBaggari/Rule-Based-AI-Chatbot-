@@ -3,7 +3,7 @@ import unittest
 
 from chatbot import intent_matcher
 from chatbot.intent_matcher import Match, extract_name, match_intent
-from chatbot.knowledge_base import INTENTS
+from chatbot.knowledge_base import EXACT_INDEX, INTENTS
 from chatbot.preprocessor import sanitize
 
 
@@ -16,8 +16,11 @@ class EveryPatternTests(unittest.TestCase):
     def test_each_pattern_matches_its_own_intent(self):
         for intent, entry in INTENTS.items():
             for pattern in entry["patterns"]:
+                # A message that *is* an exit command always exits, so exact
+                # farewell patterns take priority over keyword patterns.
+                expected = EXACT_INDEX.get(sanitize(pattern), intent)
                 with self.subTest(intent=intent, pattern=pattern):
-                    self.assertEqual(intent_of(pattern), intent)
+                    self.assertEqual(intent_of(pattern), expected)
 
 
 class MatchingRuleTests(unittest.TestCase):
@@ -57,10 +60,16 @@ class ExitMatchingTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(intent_of(text), "farewell")
 
-    def test_exit_word_inside_sentence_does_not_exit(self):
+    def test_common_goodbye_phrases_exit(self):
+        for text in ("ok bye", "Bye Nova!", "good night", "I have to go", "gotta go",
+                     "talk to you later", "thanks, bye"):
+            with self.subTest(text=text):
+                self.assertEqual(intent_of(text), "farewell")
+
+    def test_exit_word_inside_sentence_gives_hint_instead(self):
         for text in ("I will not quit", "how do I exit vim", "bye bye birdie song"):
             with self.subTest(text=text):
-                self.assertNotEqual(intent_of(text), "farewell")
+                self.assertEqual(intent_of(text), "exit_hint")
 
     def test_exit_rule_is_exact(self):
         self.assertEqual(match_intent("bye").rule, "exact")
@@ -87,11 +96,47 @@ class NameTests(unittest.TestCase):
 
     def test_extract_caps_name_length(self):
         self.assertEqual(
-            extract_name("call me a b c d e", "call me"), "A B C"
+            extract_name("call me ann bob cat dan", "call me"), "Ann Bob Cat"
         )
 
     def test_extract_missing_name(self):
         self.assertIsNone(extract_name("my name is", "my name is"))
+
+    def test_extract_rejects_words_that_are_not_names(self):
+        for text, prefix in (
+            ("call me later", "call me"),
+            ("call me maybe", "call me"),
+            ("my name is not important", "my name is"),
+            ("my name is 123", "my name is"),
+            ("call me alex123", "call me"),
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(extract_name(text, prefix))
+
+
+class CommonPhrasingTests(unittest.TestCase):
+    """Everyday ways of saying things that should not fall back."""
+
+    def test_common_phrasings(self):
+        cases = {
+            "hii": "greeting", "Nova": "greeting", "sup": "greeting",
+            "how are u": "how_are_you", "how you doing?": "how_are_you",
+            "who made you?": "creator", "how old are you": "bot_age",
+            "how do you work": "how_it_works", "what is AI?": "how_it_works",
+            "you are smart": "compliment", "you are stupid": "criticism",
+            "sorry": "apology", "lol": "laughter", "ok": "acknowledgement",
+            "thank u": "thanks", "what date is it": "date",
+            "what's the weather like": "weather", "another joke": "joke",
+            "what can I ask?": "help",
+        }
+        for text, intent in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(intent_of(text), intent)
+
+    def test_longer_phrase_beats_single_word(self):
+        self.assertEqual(intent_of("I'm great"), "mood_positive")
+        self.assertEqual(intent_of("not great"), "mood_negative")
+        self.assertEqual(intent_of("you are great"), "compliment")
 
 
 def load_tests(loader, tests, ignore):
