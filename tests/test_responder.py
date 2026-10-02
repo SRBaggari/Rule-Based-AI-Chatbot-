@@ -64,7 +64,8 @@ class BuildResponseTests(unittest.TestCase):
 class PersonalisationTests(unittest.TestCase):
     def test_known_name_uses_personal_responses(self):
         reply = build_response("greeting", name="Alex")
-        self.assertIn(reply, possible_replies(INTENTS["greeting"]["personal_responses"], "Alex"))
+        personal = INTENTS["greeting"]["personal_responses"]
+        self.assertIn(reply, possible_replies(personal, "Alex"))
         self.assertIn("Alex", reply)
 
     def test_unknown_name_uses_general_responses(self):

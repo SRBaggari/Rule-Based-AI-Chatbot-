@@ -4,7 +4,7 @@ This is the only module that reads input or prints output, so the rest of the
 bot can be tested without a terminal.
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from chatbot.chatbot import Chatbot, Reply
 from chatbot.knowledge_base import BOT_NAME

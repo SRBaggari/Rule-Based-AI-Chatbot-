@@ -13,9 +13,9 @@ The chain stays the same size however many intents the knowledge base holds.
 """
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
 
 from chatbot.intent_matcher import Match, extract_name, match_intent
 from chatbot.knowledge_base import EMPTY_INPUT

@@ -82,7 +82,8 @@ INTENTS: dict[str, dict] = {
             "feeling down",
         ],
         "responses": [
-            "I'm sorry to hear that. Maybe a joke would help? Just say 'tell me a joke'.",
+            "I'm sorry to hear that. Maybe a joke would help? "
+            "Just say 'tell me a joke'.",
             "That sounds tough. Remember to take a break - you've earned it.",
         ],
     },
@@ -137,10 +138,12 @@ INTENTS: dict[str, dict] = {
         "responses": [
             "Why do programmers prefer dark mode? Because light attracts bugs.",
             "Why was the if-statement so calm? It always had an else to fall back on.",
-            "There are 10 types of people: those who understand binary and those who don't.",
+            "There are 10 types of people: those who understand binary "
+            "and those who don't.",
             "A rule-based bot walks into a bar. The bartender asks what it'll have. "
             "It says: 'Sorry, I don't understand.'",
-            "I told my computer I needed a break. It said: 'No problem - I'll go to sleep.'",
+            "I told my computer I needed a break. "
+            "It said: 'No problem - I'll go to sleep.'",
         ],
     },
     "time": {
