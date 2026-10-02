@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
-![Tests](https://img.shields.io/badge/tests-117%20unit%20tests-brightgreen)
+![Tests](https://img.shields.io/badge/tests-119%20automated%20tests-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 A command-line chatbot that answers predefined user inputs using explicit,
@@ -126,6 +126,9 @@ concepts.
   as *"I will not quit"*, doesn't end the chat; Nova explains how to leave
   instead.
 - **Clean shutdown** on Ctrl+C or end of input, with no error traceback.
+- **No crash on unusual characters.** If the terminal can't display a character
+  (for example a non-Latin name when output is redirected to a file on
+  Windows), it is shown as `?` instead of stopping the program.
 
 **Usability**
 
@@ -303,6 +306,7 @@ Rule-Based-AI-Chatbot-/
 │   ├── responder.py             # OUTPUT:  build_response(), render() from templates
 │   └── cli.py                   # The while loop, welcome message, trace mode, clean exit
 ├── tests/
+│   ├── __init__.py
 │   ├── test_preprocessor.py     # Input cleaning
 │   ├── test_knowledge_base.py   # Knowledge base structure and lookup dictionaries
 │   ├── test_intent_matcher.py   # Matching rules, exit phrases, name extraction
@@ -448,7 +452,7 @@ The full session, including the welcome message and the `help` output, is in
 
 ### Automated tests
 
-The project has **117 automated tests** (`unittest` plus `doctest`). They
+The project has **119 automated tests** (`unittest` plus `doctest`). They
 pass on Python 3.10, 3.12 and 3.14. Run them with:
 
 ```bash
@@ -462,7 +466,7 @@ python -m unittest discover -v
 | `test_intent_matcher.py` | Every pattern reaches its own intent; whole-word matching; longest phrase wins; exit phrases; name extraction |
 | `test_responder.py` | Replies come from the right templates; time, date and name are filled in; no immediate repeats |
 | `test_chatbot.py` | Every branch of the if/elif/else chain; name memory; fallback escalation; only goodbyes end the chat |
-| `test_cli.py` | The loop runs until an exit command; lines after an exit are never read; Ctrl+C and end of input exit cleanly; trace mode |
+| `test_cli.py` | The loop runs until an exit command; lines after an exit are never read; Ctrl+C and end of input exit cleanly; trace mode; no crash on characters the terminal can't display |
 | `test_spec_compliance.py` | One test per requirement in the Project 1 brief (see [section 13](#13-requirements-satisfied)) |
 
 ### Main conversation test cases
@@ -570,7 +574,7 @@ Beyond the minimum, Nova adds:
 - session memory for the user's name
 - careful handling of empty, unknown and ambiguous input
 - trace mode, so every answer can be explained
-- 117 automated tests
+- 119 automated tests
 
 The project shows the main strength of rule-based AI: Nova only says what it
 was explicitly told to say, and every answer can be traced to its rule. It

@@ -13,7 +13,7 @@ import unittest
 from chatbot import chatbot as chatbot_module
 from chatbot import cli
 from chatbot.chatbot import FALLBACK_INTENT, Chatbot
-from chatbot.knowledge_base import INTENTS
+from chatbot.knowledge_base import EXACT_INDEX, INTENTS
 from chatbot.preprocessor import sanitize
 
 
@@ -22,6 +22,16 @@ def function_tree(func) -> ast.AST:
 
 
 class KeyRequirementTests(unittest.TestCase):
+    def test_responds_to_predefined_user_inputs(self):
+        for intent, entry in INTENTS.items():
+            pattern = entry["patterns"][-1]
+            if sanitize(pattern) in EXACT_INDEX and intent != "farewell":
+                continue  # the bare word is an exit command, e.g. "bye"
+            with self.subTest(intent=intent, pattern=pattern):
+                reply = Chatbot().respond(pattern)
+                self.assertEqual(reply.intent, intent)
+                self.assertTrue(reply.text)
+
     def test_handles_greetings(self):
         for text in ("hi", "Hello!", "good morning"):
             with self.subTest(text=text):

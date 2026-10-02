@@ -69,7 +69,10 @@ class Chatbot:
 
         if not clean:
             # A blank line and a line of only symbols ("?!") get different hints.
-            entry = SYMBOLS_ONLY if raw_input.strip() else EMPTY_INPUT
+            if raw_input.strip():
+                entry = SYMBOLS_ONLY
+            else:
+                entry = EMPTY_INPUT
             intent, text = EMPTY_INTENT, self._render(entry)
         elif match is None:
             self.session.misses += 1

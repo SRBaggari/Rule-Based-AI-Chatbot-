@@ -1,6 +1,8 @@
+import io
 import random
 import unittest
 from datetime import datetime
+from unittest import mock
 
 import main
 from chatbot.chatbot import Chatbot
@@ -98,6 +100,19 @@ class MainArgsTests(unittest.TestCase):
     def test_trace_flag(self):
         self.assertTrue(main.parse_args(["--trace"]).trace)
         self.assertFalse(main.parse_args([]).trace)
+
+
+class MainOutputEncodingTests(unittest.TestCase):
+    def test_non_latin_name_does_not_crash_a_cp1252_terminal(self):
+        raw = io.BytesIO()
+        cp1252_stdout = io.TextIOWrapper(raw, encoding="cp1252")
+        stdin = io.StringIO("my name is 张伟\nwhat's my name\nbye\n")
+        with mock.patch("sys.stdout", cp1252_stdout), mock.patch("sys.stdin", stdin):
+            main.main([])
+            cp1252_stdout.flush()
+        output = raw.getvalue()
+        self.assertIn(b"name is ??", output)  # the name, shown as "?" characters
+        self.assertIn(b"Session ended", output)  # the loop finished normally
 
 
 if __name__ == "__main__":
